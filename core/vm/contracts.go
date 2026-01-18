@@ -63,6 +63,12 @@ var PrecompiledContractsHomestead = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x2}): &sha256hash{},
 	common.BytesToAddress([]byte{0x3}): &ripemd160hash{},
 	common.BytesToAddress([]byte{0x4}): &dataCopy{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsByzantium contains the default set of pre-compiled Ethereum
@@ -76,6 +82,12 @@ var PrecompiledContractsByzantium = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x6}): &bn256AddByzantium{},
 	common.BytesToAddress([]byte{0x7}): &bn256ScalarMulByzantium{},
 	common.BytesToAddress([]byte{0x8}): &bn256PairingByzantium{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsIstanbul contains the default set of pre-compiled Ethereum
@@ -90,6 +102,12 @@ var PrecompiledContractsIstanbul = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x7}): &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{0x8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{0x9}): &blake2F{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsBerlin contains the default set of pre-compiled Ethereum
@@ -104,6 +122,12 @@ var PrecompiledContractsBerlin = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x7}): &bn256ScalarMulIstanbul{},
 	common.BytesToAddress([]byte{0x8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{0x9}): &blake2F{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsCancun contains the default set of pre-compiled Ethereum
@@ -119,6 +143,12 @@ var PrecompiledContractsCancun = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x8}): &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{0x9}): &blake2F{},
 	common.BytesToAddress([]byte{0xa}): &kzgPointEvaluation{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsPrague contains the set of pre-compiled Ethereum
@@ -141,6 +171,12 @@ var PrecompiledContractsPrague = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x0f}): &bls12381Pairing{},
 	common.BytesToAddress([]byte{0x10}): &bls12381MapG1{},
 	common.BytesToAddress([]byte{0x11}): &bls12381MapG2{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 var PrecompiledContractsBLS = PrecompiledContractsPrague
@@ -169,6 +205,12 @@ var PrecompiledContractsOsaka = PrecompiledContracts{
 	common.BytesToAddress([]byte{0x11}): &bls12381MapG2{},
 
 	common.BytesToAddress([]byte{0x1, 0x00}): &p256Verify{},
+	
+	// Custom precompiled contracts
+	common.BytesToAddress([]byte{0x12}): &generateAcc{},
+	common.BytesToAddress([]byte{0x13}): &encryptedSum{},
+	common.BytesToAddress([]byte{0x14}): &verifyVoteZKP{},
+	common.BytesToAddress([]byte{0x15}): &verifySignature{},
 }
 
 // PrecompiledContractsP256Verify contains the precompiled Ethereum
