@@ -3,15 +3,17 @@ ARG COMMIT=""
 ARG VERSION=""
 ARG BUILDNUM=""
 
-FROM rust:bullseye AS rust-builder
+FROM rust:alpine AS rust-builder
+
+RUN apk add --no-cache gcc musl-dev linux-headers git libc6-compat
 
 ADD ./ballots /ballots
-RUN cd /ballots && cargo build --release
+RUN cd /ballots && RUSTFLAGS="-C target-feature=-crt-static" cargo build --release
 
 # Build Geth in a stock Go builder container
-FROM golang:1.24-bullseye AS builder
+FROM golang:1.24-alpine AS builder
 
-RUN apt-get update && apt-get install -y build-essential libc6-dev git
+RUN apk add --no-cache gcc musl-dev linux-headers git
 
 # Get dependencies - will also be cached if we won't change go.mod/go.sum
 COPY go.mod /go-ethereum/
@@ -24,9 +26,9 @@ ADD . /go-ethereum
 RUN cd /go-ethereum && go run build/ci.go install ./cmd/geth
 
 # Pull Geth into a second stage deploy alpine container
-FROM debian:latest
+FROM alpine:latest
+RUN apk add --no-cache ca-certificates
 
-RUN apt-get update && apt-get install -y ca-certificates
 COPY --from=builder /go-ethereum/build/bin/geth /usr/local/bin/
 COPY --from=rust-builder /ballots/target/release/libballots.so /usr/lib/
 
