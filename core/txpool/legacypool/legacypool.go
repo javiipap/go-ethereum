@@ -500,27 +500,36 @@ func (pool *LegacyPool) Pending(filter txpool.PendingFilter) map[common.Address]
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
+	log.Info("[DEBUG-PENDING] legacypool.Pending called", "poolPendingLen", len(pool.pending), "minTip", filter.MinTip, "baseFee", filter.BaseFee)
+
 	pending := make(map[common.Address][]*txpool.LazyTransaction, len(pool.pending))
 	for addr, list := range pool.pending {
 		txs := list.Flatten()
+
+		log.Info("[DEBUG-PENDING] account before filter", "addr", addr, "txCount", len(txs))
 
 		// If the miner requests tip enforcement, cap the lists now
 		if filter.MinTip != nil || filter.GasLimitCap != 0 {
 			for i, tx := range txs {
 				if filter.MinTip != nil {
-					if tx.EffectiveGasTipIntCmp(filter.MinTip, filter.BaseFee) < 0 {
+					cmp := tx.EffectiveGasTipIntCmp(filter.MinTip, filter.BaseFee)
+					log.Info("[DEBUG-PENDING] tip check", "addr", addr, "nonce", tx.Nonce(), "gasFeeCap", tx.GasFeeCap(), "gasTipCap", tx.GasTipCap(), "cmp", cmp)
+					if cmp < 0 {
+						log.Info("[DEBUG-PENDING] tx filtered out by tip", "addr", addr, "nonce", tx.Nonce())
 						txs = txs[:i]
 						break
 					}
 				}
 				if filter.GasLimitCap != 0 {
 					if tx.Gas() > filter.GasLimitCap {
+						log.Info("[DEBUG-PENDING] tx filtered out by gasLimitCap", "addr", addr, "nonce", tx.Nonce(), "gas", tx.Gas(), "cap", filter.GasLimitCap)
 						txs = txs[:i]
 						break
 					}
 				}
 			}
 		}
+		log.Info("[DEBUG-PENDING] account after filter", "addr", addr, "txCount", len(txs))
 		if len(txs) > 0 {
 			lazies := make([]*txpool.LazyTransaction, len(txs))
 			for i := 0; i < len(txs); i++ {

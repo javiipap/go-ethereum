@@ -138,10 +138,14 @@ func (miner *Miner) generateWork(genParam *generateParams, witness bool) *newPay
 		})
 		defer timer.Stop()
 
+		log.Info("[DEBUG-GEN] generateWork calling fillTransactions", "block", work.header.Number, "noTxs", genParam.noTxs, "recommit", miner.config.Recommit)
 		err := miner.fillTransactions(interrupt, work)
 		if errors.Is(err, errBlockInterruptedByTimeout) {
 			log.Warn("Block building is interrupted", "allowance", common.PrettyDuration(miner.config.Recommit))
 		}
+		log.Info("[DEBUG-GEN] fillTransactions returned", "block", work.header.Number, "txCount", len(work.txs), "err", err)
+	} else {
+		log.Info("[DEBUG-GEN] generateWork skipping txs", "block", work.header.Number, "noTxs", genParam.noTxs)
 	}
 	body := types.Body{Transactions: work.txs, Withdrawals: genParam.withdrawals}
 
@@ -360,16 +364,19 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
 	}
+	log.Info("[DEBUG-COMMIT] commitTransactions start", "gasPool", env.gasPool.Gas(), "gasLimit", gasLimit)
+	txCount := 0
 	for {
 		// Check interruption signal and abort building if it's fired.
 		if interrupt != nil {
 			if signal := interrupt.Load(); signal != commitInterruptNone {
+				log.Info("[DEBUG-COMMIT] interrupted", "signal", signal, "txCount", txCount)
 				return signalToErr(signal)
 			}
 		}
 		// If we don't have enough gas for any further transactions then we're done.
 		if env.gasPool.Gas() < params.TxGas {
-			log.Trace("Not enough gas for further transactions", "have", env.gasPool, "want", params.TxGas)
+			log.Info("[DEBUG-COMMIT] not enough gas", "have", env.gasPool.Gas(), "want", params.TxGas)
 			break
 		}
 		// If we don't have enough blob space for any further blob transactions,
@@ -400,11 +407,12 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 			}
 		}
 		if ltx == nil {
+			log.Info("[DEBUG-COMMIT] no more transactions to process")
 			break
 		}
 		// If we don't have enough space for the next transaction, skip the account.
 		if env.gasPool.Gas() < ltx.Gas {
-			log.Trace("Not enough gas left for transaction", "hash", ltx.Hash, "left", env.gasPool.Gas(), "needed", ltx.Gas)
+			log.Info("[DEBUG-COMMIT] not enough gas for tx", "hash", ltx.Hash, "left", env.gasPool.Gas(), "needed", ltx.Gas)
 			txs.Pop()
 			continue
 		}
@@ -452,17 +460,19 @@ func (miner *Miner) commitTransactions(env *environment, plainTxs, blobTxs *tran
 		switch {
 		case errors.Is(err, core.ErrNonceTooLow):
 			// New head notification data race between the transaction pool and miner, shift
-			log.Trace("Skipping transaction with low nonce", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce())
+			log.Info("[DEBUG-COMMIT] tx nonce too low", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce())
 			txs.Shift()
 
 		case errors.Is(err, nil):
 			// Everything ok, collect the logs and shift in the next transaction from the same account
+			txCount++
+			log.Info("[DEBUG-COMMIT] tx committed OK", "hash", ltx.Hash, "sender", from, "nonce", tx.Nonce(), "txCount", txCount)
 			txs.Shift()
 
 		default:
 			// Transaction is regarded as invalid, drop all consecutive transactions from
 			// the same sender because of `nonce-too-high` clause.
-			log.Debug("Transaction failed, account skipped", "hash", ltx.Hash, "err", err)
+			log.Info("[DEBUG-COMMIT] tx failed", "hash", ltx.Hash, "err", err, "sender", from)
 			txs.Pop()
 		}
 	}
@@ -478,6 +488,8 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 	prio := miner.prio
 	miner.confMu.RUnlock()
 
+	log.Info("[DEBUG-FILL] fillTransactions called", "block", env.header.Number, "baseFee", env.header.BaseFee, "gasLimit", env.header.GasLimit, "minerTip", tip)
+
 	// Retrieve the pending transactions pre-filtered by the 1559/4844 dynamic fees
 	filter := txpool.PendingFilter{
 		MinTip: uint256.MustFromBig(tip),
@@ -491,8 +503,18 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 	if miner.chainConfig.IsOsaka(env.header.Number, env.header.Time) {
 		filter.GasLimitCap = params.MaxTxGas
 	}
+	log.Info("[DEBUG-FILL] filter", "minTip", filter.MinTip, "baseFee", filter.BaseFee, "blobFee", filter.BlobFee, "gasLimitCap", filter.GasLimitCap)
+
 	filter.BlobTxs = false
 	pendingPlainTxs := miner.txpool.Pending(filter)
+
+	log.Info("[DEBUG-FILL] Pending() returned", "plainAccounts", len(pendingPlainTxs))
+	for addr, txs := range pendingPlainTxs {
+		log.Info("[DEBUG-FILL] pending account", "addr", addr, "txCount", len(txs))
+		for i, tx := range txs {
+			log.Info("[DEBUG-FILL] pending tx", "idx", i, "hash", tx.Hash, "gasFeeCap", tx.GasFeeCap, "gasTipCap", tx.GasTipCap, "gas", tx.Gas)
+		}
+	}
 
 	filter.BlobTxs = true
 	if miner.chainConfig.IsOsaka(env.header.Number, env.header.Time) {
@@ -516,12 +538,15 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 			prioBlobTxs[account] = txs
 		}
 	}
+	log.Info("[DEBUG-FILL] split", "prioPlain", len(prioPlainTxs), "normalPlain", len(normalPlainTxs), "prioBlobTxs", len(prioBlobTxs), "normalBlobTxs", len(normalBlobTxs))
+
 	// Fill the block with all available pending transactions.
 	if len(prioPlainTxs) > 0 || len(prioBlobTxs) > 0 {
 		plainTxs := newTransactionsByPriceAndNonce(env.signer, prioPlainTxs, env.header.BaseFee)
 		blobTxs := newTransactionsByPriceAndNonce(env.signer, prioBlobTxs, env.header.BaseFee)
 
 		if err := miner.commitTransactions(env, plainTxs, blobTxs, interrupt); err != nil {
+			log.Info("[DEBUG-FILL] commitTransactions (prio) error", "err", err)
 			return err
 		}
 	}
@@ -530,9 +555,11 @@ func (miner *Miner) fillTransactions(interrupt *atomic.Int32, env *environment) 
 		blobTxs := newTransactionsByPriceAndNonce(env.signer, normalBlobTxs, env.header.BaseFee)
 
 		if err := miner.commitTransactions(env, plainTxs, blobTxs, interrupt); err != nil {
+			log.Info("[DEBUG-FILL] commitTransactions (normal) error", "err", err)
 			return err
 		}
 	}
+	log.Info("[DEBUG-FILL] fillTransactions done", "includedTxs", env.tcount)
 	return nil
 }
 
